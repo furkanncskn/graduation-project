@@ -5,6 +5,9 @@
 
 #include <stdint.h>
 
+
+/*! Typedef Declarations */
+
 typedef enum {
 
   FCSUCCESS = 0U,
@@ -19,10 +22,14 @@ typedef enum {
 
 }FCStatus;
 
+
+/* Function Definitions */
+
 uint8_t* I2C_Read(I2C_HandleTypeDef* i2cHandle, uint8_t device_adress, uint8_t memory_adress, uint8_t number_of_bytes, uint8_t* data);
 
 uint8_t I2C_Write(I2C_HandleTypeDef* i2cHandle, uint8_t device_adress, uint8_t memory_adress, uint8_t* data);
 
 uint8_t ScanI2CReady(I2C_HandleTypeDef* i2cHandle);
+
 
 #endif // FC_UTILITY_H

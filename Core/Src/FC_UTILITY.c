@@ -17,6 +17,7 @@ uint8_t* I2C_Read(I2C_HandleTypeDef* i2cHandle, uint8_t device_adress, uint8_t m
 	return data;
 }
 
+
 /*!
  * 	@brief 		Istenen I2C hattindan yazma gerceklestirir
  *
