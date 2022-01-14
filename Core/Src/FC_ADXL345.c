@@ -7,19 +7,42 @@
 /*! Macros Declarations */
 
 #define 	PUBLIC
-#define 	PRIVATE 							static
+#define 	PRIVATE 					static
 
-#define   ADXL345_I2C_ADRESS    (0x53 << 1)                  // ADXL345 device address
-#define   ADXL345_WHO_AM_I			(0x00)               	       // a fixed device ID code of 0xE5
-#define   ADXL345_FIXED_VAL			(0xE5)
-#define   ADXL345_DATA_FORMAT   (0x31)
-#define   ADXL345_POWER_CTL     (0x2D)
-#define   ADXL345_DATAX0        (0x32)
-#define		CALIBRATION_SIZE			(1024)
-#define 	ACCEL_LOWER_LIMIT			(-1)
-#define 	ACCEL_UPPER_LIMIT			(+1)
-#define 	MILIS_TO_SECOND				(0.001)
+#define   	ADXL345_I2C_ADRESS    		(0x53 << 1)                  // ADXL345 device address
+#define   	ADXL345_WHO_AM_I			(0x00)               	     // a fixed device ID code of 0xE5
+#define   	ADXL345_FIXED_VAL			(0xE5)
+#define   	ADXL345_DATA_FORMAT   		(0x31)
+#define   	ADXL345_POWER_CTL     		(0x2D)
+#define   	ADXL345_DATAX0        		(0x32)
+#define	  	CALIBRATION_SIZE			(1024)
+#define   	ACCEL_LOWER_LIMIT			(-1)
+#define   	ACCEL_UPPER_LIMIT			(+1)
+#define   	MILIS_TO_SECOND				(0.001)
 
+#define IS_GREATER_THAN_10_MILLISECONDS(time_diff) 	(!((time_diff) < 10))
+
+/*
+ * ADXL345 nesnesi test asamasi boyunca baslik dosyasinda kalacak,
+ * gereksiz structer elemanları test calismalari bittikten sorna cikartilacak
+ *
+ **/
+typedef struct ADXL345 {
+
+	double accVal[3];
+	double accOffset[3];
+	double accPrevious[3];
+	double FIRfilterAcc[3];
+	double IIRfilterAcc[3];
+	double accRecent[3];
+	double accVelocity[3];
+	double accSumVelocity[3];
+	double accPreviousVelocity[3];
+	double accDiff[3];
+	int16_t accRaw[3];
+	int16_t sensivity;
+
+}ADXL345;
 
 /*!< Typedef Declarations */
 
@@ -46,6 +69,7 @@ PRIVATE uint8_t ADXL345_SelectSensivityRange(I2C_HandleTypeDef* i2cHandle, ADXL3
  * 		  Hayata getirilen nesnenin adresi
  */
 PUBLIC ADXL345* ADXL345_CreateObject(void) {
+
 	ADXL345* adxl = (ADXL345*)malloc(sizeof(ADXL345));
 	if (!adxl)
 		return NULL;
@@ -59,6 +83,7 @@ PUBLIC ADXL345* ADXL345_CreateObject(void) {
  *
  */
 PUBLIC void ADXL345_DeleteObject(ADXL345* adxl) {
+
 	if (!adxl)
 		return;
 
@@ -74,6 +99,7 @@ PUBLIC void ADXL345_DeleteObject(ADXL345* adxl) {
  *	    	Cihaz yok ise  '1'
  */
 PUBLIC uint8_t ADXL345_IsWhoAmI(I2C_HandleTypeDef* i2cHandle) {
+
 	uint8_t data = 0;
 	if (I2C_Read(i2cHandle, ADXL345_I2C_ADRESS, ADXL345_WHO_AM_I, 1, &data))
 		if (data == ADXL345_FIXED_VAL)
@@ -92,10 +118,13 @@ PUBLIC uint8_t ADXL345_IsWhoAmI(I2C_HandleTypeDef* i2cHandle) {
  * 			Basari durumunda 		'0'
  */
 PUBLIC uint8_t ADXL345_Init(I2C_HandleTypeDef* i2cHandle, ADXL345* adxl, uint8_t range) {
-	if (ADXL345_Reset(i2cHandle)) // reset all bits
+
+	// reset all bits
+	if (ADXL345_Reset(i2cHandle))
 		return FCFAIL;
 
-	uint8_t val = 0x08; // measure and wake up
+	// wake up
+	uint8_t val = 0x08;
 	if (I2C_Write(i2cHandle, ADXL345_I2C_ADRESS, ADXL345_POWER_CTL, &val) == FCFAIL)
 		return FCFAIL;
 
@@ -117,6 +146,7 @@ PUBLIC uint8_t ADXL345_Init(I2C_HandleTypeDef* i2cHandle, ADXL345* adxl, uint8_t
  *
  */
 PUBLIC uint8_t ADXL345_ReadRawValueFromAccel(I2C_HandleTypeDef* i2cHandle, ADXL345* adxl) {
+
 	uint8_t data[6] = { 0 };
 
 	HAL_I2C_Mem_Read(i2cHandle, ADXL345_I2C_ADRESS, ADXL345_DATAX0, 1, data, 6, 100);
@@ -134,6 +164,7 @@ PUBLIC uint8_t ADXL345_ReadRawValueFromAccel(I2C_HandleTypeDef* i2cHandle, ADXL3
  *
  */
 PUBLIC void ADXL345_SetOffsetValues(I2C_HandleTypeDef* i2cHandle, ADXL345* adxl) {
+
 	double temp_buffer[3] = { 0, 0, 0 };
 	int cnt;
 	for (cnt = 0; cnt < CALIBRATION_SIZE; ) {
@@ -158,6 +189,7 @@ PUBLIC void ADXL345_SetOffsetValues(I2C_HandleTypeDef* i2cHandle, ADXL345* adxl)
  * 			edildi.
  */
 PUBLIC void ADXL345_SetAccelerations(I2C_HandleTypeDef* i2cHandle, ADXL345* adxl) {
+
 	for (int i = 0; i < 3; ++i) {
 		adxl->accVal[i] = (adxl->accRaw[i] - adxl->accOffset[i]) / adxl->sensivity * EARTH_GRAVITY;
 	}
@@ -226,27 +258,39 @@ PUBLIC void ADXL345_IIRLowPassFilter(ADXL345* adxl, double IIRfilter_rate) {
  * 			degeri hesaplanir.
  *
  */
-void ADXL345_SetVelocity(ADXL345* adxl, double deltaT) {
-	static double previous_velocity[3] = { 0 };
+void ADXL345_SetVelocity(ADXL345* adxl) {
+
+	static double previous_velocity[2] = { 0 };
+	static uint32_t velocity_previous_time = 0;
 	static int16_t cnt = 0;
 
-	for (int i = 0; i < 3; ++i) {
+	/* Hizi hesapla ve degerleri degiskenlere al */
+	uint32_t current_time = HAL_GetTick();
+	double deltaT = current_time - velocity_previous_time;
 
-		/* if the acceleration is zero for a while, reset speed and previous accel */
-		if ((int)adxl->accRecent[i] == 0 && (int)adxl->accRecent[i] == 0) {
-			cnt++;
-			if (cnt > 32) {
-				cnt = 0;
-				adxl->accVelocity[i] = 0;
-				previous_velocity[i] = 0;
-				adxl->accPrevious[i] = 0;
+	if (IS_GREATER_THAN_10_MILLISECONDS(deltaT)) {
+
+		velocity_previous_time = current_time;
+
+		for (int i = 0; i < 2; ++i) {
+
+			/* if the acceleration is zero for a while, reset speed and previous accel */
+			if ((int)adxl->accRecent[i] == 0) {
+				cnt++;
+				if (cnt > 32) {
+					cnt = 0;
+					adxl->accVelocity[i] = 0;
+					previous_velocity[i] = 0;
+					adxl->accPrevious[i] = 0;
+				}
 			}
-		}
 
-		/* Calculate velocity, integral of the acceleration */
-		adxl->accVelocity[i] = previous_velocity[i] + (adxl->accPrevious[i] + ((adxl->accRecent[i] - adxl->accPrevious[i]) / 2)) * (deltaT * MILIS_TO_SECOND);
-		previous_velocity[i] = adxl->accVelocity[i];
-		adxl->accPrevious[i] = adxl->accRecent[i];
+			/* Calculate velocity, integral of the acceleration */
+			adxl->accVelocity[i] = previous_velocity[i] + (adxl->accPrevious[i] + ((adxl->accRecent[i] - adxl->accPrevious[i]) / 2)) * (deltaT * MILIS_TO_SECOND);
+			previous_velocity[i] = adxl->accVelocity[i];
+			adxl->accPrevious[i] = adxl->accRecent[i];
+
+		}
 	}
 }
 
@@ -260,6 +304,7 @@ void ADXL345_SetVelocity(ADXL345* adxl, double deltaT) {
  * 			Basarisizlik durumunda '1'
  */
 PRIVATE uint8_t ADXL345_Reset(I2C_HandleTypeDef* i2cHandle) {
+
 	if (I2C_Write(i2cHandle, ADXL345_I2C_ADRESS, ADXL345_POWER_CTL, 0x00))
 		return FCFAIL;
 
@@ -276,6 +321,7 @@ PRIVATE uint8_t ADXL345_Reset(I2C_HandleTypeDef* i2cHandle) {
  * 			Basarisizlik durumunda '1'
  */
 PRIVATE uint8_t ADXL345_SelectSensivityRange(I2C_HandleTypeDef* i2cHandle, ADXL345* adxl, uint8_t range) {
+
 	uint8_t val;
 	switch (range) {
 	case ADXL345_2G:
@@ -318,6 +364,13 @@ PRIVATE uint8_t ADXL345_SelectSensivityRange(I2C_HandleTypeDef* i2cHandle, ADXL3
 	return FCSUCCESS;
 }
 
+/*********************************************************************************************
+ *
+ *
+ *  							Getter Function Definitions
+ *
+ *
+ *********************************************************************************************/
 
 PUBLIC int16_t ADXL345_GetRawXValue(const ADXL345* adxl) {
 	return adxl->accRaw[0];
@@ -367,14 +420,22 @@ PUBLIC double ADXL345_GetIIRFilterAccelerationZ(const ADXL345* adxl) {
 	return adxl->IIRfilterAcc[2];
 }
 
+PUBLIC double ADXL345_GetRecentAccelValueX(const ADXL345* adxl) {
+	return adxl->accRecent[0];
+}
+
+PUBLIC double ADXL345_GetRecentAccelValueY(const ADXL345* adxl) {
+	return adxl->accRecent[1];
+}
+
+PUBLIC double ADXL345_GetRecentAccelValueZ(const ADXL345* adxl) {
+	return adxl->accRecent[2];
+}
+
 PUBLIC double ADXL345_GetVelocityX(const ADXL345* adxl) {
 	return adxl->accVelocity[0];
 }
 
 PUBLIC double ADXL345_GetVelocityY(const ADXL345* adxl) {
 	return adxl->accVelocity[1];
-}
-
-PUBLIC double ADXL345_GetVelocityZ(const ADXL345* adxl) {
-	return adxl->accVelocity[2];
 }
