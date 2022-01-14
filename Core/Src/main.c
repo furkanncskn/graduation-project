@@ -39,17 +39,17 @@ int main(void) {
   lcd_init(&hi2c2);
 
   /*!< ADXL345 sensoru var mi yok mu ? */
-  if (ADXL345_IsWhoAmI(&hi2c1) == FALSE)
-	  ;
+  while (ADXL345_IsWhoAmI(&hi2c1) == FALSE)
+    ;
 
   /*!< ADXL345 nesnem basarili bir sekilde olusturuldu mu ? */
   ADXL345* _ADXL345 = ADXL345_CreateObject();
-  if (_ADXL345 == NULL)
-	  ;
+  while (_ADXL345 == NULL)
+    ;
 
   /*!< ADXL345 sensoru kullanmaya hazir hale getirildi mi ? */
-  if (ADXL345_Init(&hi2c1, _ADXL345, ADXL345_2G) == FCFAIL)
-	  ;
+  while (ADXL345_Init(&hi2c1, _ADXL345, ADXL345_2G) == FCFAIL)
+    ;
 
   /*!< ADXL345 kalibrasyonu yapilir */
   ADXL345_SetOffsetValues(&hi2c1, _ADXL345);
@@ -65,7 +65,7 @@ int main(void) {
     /*!< FIR filtreyi çalıştır */
     ADXL345_FIRAvarageFilter(&hi2c1, _ADXL345, FIR_FILTER_SIZE);
 
-	/*!< IIR filtreyi calistir */
+    /*!< IIR filtreyi calistir */
     ADXL345_IIRLowPassFilter(_ADXL345, IIR_FILTER_RATE);
 
     /*!< Hiz bilgisini set eder */
