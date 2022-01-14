@@ -1,32 +1,24 @@
 #include "main.h"
 
+#include <stdio.h>
+#include <string.h>
+
+/*----------------------- Eklenen Kütüphaneler ------------------------*/
+
 #include "FC_ADXL345.h"
 #include "FC_UTILITY.h"
+#include "FC_I2C_LCD.h"
+#include "FC_LCD_ADXL345.h"
 
-I2C_HandleTypeDef hi2c1;
-I2C_HandleTypeDef hi2c2;
-
-
-/*---------------- Makro Tanımlamaları -----------------*/
+/*------------------------ Makro Tanımlamaları ------------------------*/
 
 #define FIR_FILTER_SIZE		(64)
 #define	IIR_FILTER_RATE		(0.90)
 
+/*-------------------- Kullanılan I2C peripherallari -------------------*/
 
-/*--------------- Kullanılan Değişkenler ---------------*/
-
-int16_t _accRaw[3];
-double 	_accVal[2];
-double  _FIRfilterAcc[3];
-double  _IIRfilterAcc[3];
-double  _accRecent[3];
-double  _accVelocity[3];
-
-uint32_t _previous_time;
-double   _period;
-
-uint8_t test;
-
+I2C_HandleTypeDef hi2c1;
+I2C_HandleTypeDef hi2c2;
 
 void SystemClock_Config(void);
 static void MX_GPIO_Init(void);
@@ -43,88 +35,44 @@ int main(void) {
   MX_I2C1_Init();
   MX_I2C2_Init();
 
-  // -------------- Asagida ki if kontrolleri debug amacli yazilmistir -------------- //
-
+  /* LCD ekran kullanima hazir hale getirildi */
+  lcd_init(&hi2c2);
 
   /*!< ADXL345 sensoru var mi yok mu ? */
-  if (ADXL345_IsWhoAmI(&hi2c1) == TRUE) test = FCSUCCESS;
-  else test = FCFAIL;
+  if (ADXL345_IsWhoAmI(&hi2c1) == FALSE)
+	  ;
 
   /*!< ADXL345 nesnem basarili bir sekilde olusturuldu mu ? */
   ADXL345* _ADXL345 = ADXL345_CreateObject();
-  if (_ADXL345 != NULL) test = FCSUCCESS;
-  else test = FCFAIL;
+  if (_ADXL345 == NULL)
+	  ;
 
   /*!< ADXL345 sensoru kullanmaya hazir hale getirildi mi ? */
-  if (ADXL345_Init(&hi2c1, _ADXL345, ADXL345_2G) != FCFAIL) test = FCSUCCESS;
-  else test = FCFAIL;
+  if (ADXL345_Init(&hi2c1, _ADXL345, ADXL345_2G) == FCFAIL)
+	  ;
 
   /*!< ADXL345 kalibrasyonu yapilir */
   ADXL345_SetOffsetValues(&hi2c1, _ADXL345);
-
-
-  // ---------------------------------------------------------------------------- //
-
 
   while (1) {
 
     /*!< Registerlandan ham degerleri oku */
     ADXL345_ReadRawValueFromAccel(&hi2c1, _ADXL345);
 
-
-    /*!< Okunan ham degerleri degiskenlere al */
-    _accRaw[0] = ADXL345_GetRawXValue(_ADXL345);
-    _accRaw[1] = ADXL345_GetRawYValue(_ADXL345);
-    _accRaw[2] = ADXL345_GetRawZValue(_ADXL345);
-
-
     /*!< İvme değerlerini oku */
     ADXL345_SetAccelerations(&hi2c1, _ADXL345);
-
-
-    /*!< İvme değerlerini değişkenlere al */
-    _accVal[0] = ADXL345_GetAccelerationX(_ADXL345);
-    _accVal[1] = ADXL345_GetAccelerationY(_ADXL345);
-    _accVal[2] = ADXL345_GetAccelerationZ(_ADXL345);
-
 
     /*!< FIR filtreyi çalıştır */
     ADXL345_FIRAvarageFilter(&hi2c1, _ADXL345, FIR_FILTER_SIZE);
 
-
-    /*!< FIR filtreden çıkan değerleri değişkenlere al */
-    _FIRfilterAcc[0] = ADXL345_GetFIRFilterAccelerationX(_ADXL345);
-    _FIRfilterAcc[1] = ADXL345_GetFIRFilterAccelerationY(_ADXL345);
-    _FIRfilterAcc[2] = ADXL345_GetFIRFilterAccelerationZ(_ADXL345);
-
-
-    /*!< IIR filtreyi calistir */
+	/*!< IIR filtreyi calistir */
     ADXL345_IIRLowPassFilter(_ADXL345, IIR_FILTER_RATE);
 
+    /*!< Hiz bilgisini set eder */
+    ADXL345_SetVelocity(_ADXL345);
 
-    /*!< Filtrelenmiş değerleri değişkenlere al */
-    _IIRfilterAcc[0] = ADXL345_GetIIRFilterAccelerationX(_ADXL345);
-    _IIRfilterAcc[1] = ADXL345_GetIIRFilterAccelerationY(_ADXL345);
-    _IIRfilterAcc[2] = ADXL345_GetIIRFilterAccelerationZ(_ADXL345);
-
-    _accRecent[0] = _ADXL345->accRecent[0];
-    _accRecent[1] = _ADXL345->accRecent[1];
-    _accRecent[2] = _ADXL345->accRecent[2];
-
-
-    /*!< Periyodu, zaman farkını hesapla */
-    uint32_t _current_time = HAL_GetTick();
-    _period = (_current_time - _previous_time);
-
-
-    /* Hizi hesapla ve degerleri degiskenlere al */
-    if (_period >= 10) {
-      ADXL345_SetVelocity(_ADXL345, _period);
-      _previous_time = _current_time;
-      for (int i = 0; i < 3; ++i) {
-        _accVelocity[i] = _ADXL345->accVelocity[i];
-      }
-    }
+    /*!< Ivme ve hiz bilgilerini LCD ekrana yazdirir >*/
+    printToLCDEverySecond(&hi2c2, _ADXL345);
 
   } // while
 
@@ -132,13 +80,24 @@ int main(void) {
   /*!< ADXL345 nesnesinin hayatini sonlandir */
   ADXL345_DeleteObject(_ADXL345);
 
-
   return 0;
 
 } // main
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+/*-------------------------------------------------------------------------------------------------------------------*/
 
 void SystemClock_Config(void) {
   RCC_OscInitTypeDef RCC_OscInitStruct = { 0 };
