@@ -7,18 +7,20 @@
 /*! Macros Declarations */
 
 #define 	PUBLIC
-#define 	PRIVATE 					static
+#define 	PRIVATE 							static
 
-#define   	ADXL345_I2C_ADRESS    		(0x53 << 1)                  // ADXL345 device address
-#define   	ADXL345_WHO_AM_I			(0x00)               	     // a fixed device ID code of 0xE5
-#define   	ADXL345_FIXED_VAL			(0xE5)
-#define   	ADXL345_DATA_FORMAT   		(0x31)
-#define   	ADXL345_POWER_CTL     		(0x2D)
-#define   	ADXL345_DATAX0        		(0x32)
-#define	  	CALIBRATION_SIZE			(1024)
-#define   	ACCEL_LOWER_LIMIT			(-1)
-#define   	ACCEL_UPPER_LIMIT			(+1)
-#define   	MILIS_TO_SECOND				(0.001)
+#define   ADXL345_I2C_ADRESS    (0x53 << 1)                // ADXL345 device address
+#define   ADXL345_WHO_AM_I			(0x00)               	     // a fixed device ID code of 0xE5
+#define   ADXL345_FIXED_VAL			(0xE5)
+#define   ADXL345_DATA_FORMAT   (0x31)
+#define   ADXL345_POWER_CTL     (0x2D)
+#define   ADXL345_DATAX0        (0x32)
+#define	  CALIBRATION_SIZE			(1024)
+#define   ACCEL_LOWER_LIMIT			(-1)
+#define   ACCEL_UPPER_LIMIT			(+1)
+#define   MILIS_TO_SECOND				(0.001)
+
+#define 	MOVING_FILTER_SIZE		(32)
 
 #define IS_GREATER_THAN_10_MILLISECONDS(time_diff) 	(!((time_diff) < 10))
 
@@ -140,9 +142,12 @@ PUBLIC uint8_t ADXL345_Init(I2C_HandleTypeDef* i2cHandle, ADXL345* adxl, uint8_t
  * @brief
  * 			Ham degerleri sensorden okur
  *
+ * @param i2cHandle, i2c hattı adresi
+ * @param adxl, ADXL345 türünden nesnenin adresi
+ *
  * @return
- * 			Basari durumunda '0'
- * 			Basarisizlik durumunda '1'
+ * 			Basari durumunda, '0'
+ * 			Basarisizlik durumunda, '1'
  *
  */
 PUBLIC uint8_t ADXL345_ReadRawValueFromAccel(I2C_HandleTypeDef* i2cHandle, ADXL345* adxl) {
@@ -187,6 +192,10 @@ PUBLIC void ADXL345_SetOffsetValues(I2C_HandleTypeDef* i2cHandle, ADXL345* adxl)
  * 			Ham değerde ki kaymayı telafi edebilmek için cal değerinden çıkartılarak
  * 			(LSB - LSB) / (LSB/g) işlemi ile g türüne çevirildi ve ivme değeri elde
  * 			edildi.
+ *
+ * @param i2cHandle, i2c hattı adresi
+ * @param adxl, ADXL345 türünden nesnenin adresi,
+ *
  */
 PUBLIC void ADXL345_SetAccelerations(I2C_HandleTypeDef* i2cHandle, ADXL345* adxl) {
 
@@ -201,26 +210,40 @@ PUBLIC void ADXL345_SetAccelerations(I2C_HandleTypeDef* i2cHandle, ADXL345* adxl
  * 			İvmeölçer sensörümüz darbeye bağlı anlık değişimlerden etkilenir. Bu sebeple anlık darbe
  * 			etkisini minimuma indirmek için moving avarage filter adında ki belirli sayıda
  * 			örneğin ortalamasını alan filtre kullanıldı.
+ *
+ * @param i2cHandle, i2c hattının adresi
+ * @param adxl, ADXL345 türünden nesnenin adresi
+ *
  */
-PUBLIC void ADXL345_FIRAvarageFilter(I2C_HandleTypeDef* i2cHandle, ADXL345* adxl, size_t FIRfilter_size) {
+PUBLIC void ADXL345_MovingAvarageFilter(I2C_HandleTypeDef* i2cHandle, ADXL345* adxl) {
 
-	double tempAccelSumVal[3] = { 0, 0, 0 };
+	// her turda bir sonra ki indexe eleman eklemek icin olusturdu
+	static int cnt;
 
-	int cnt;
-	for (cnt = 0; cnt < FIRfilter_size; ) {
-		if (!ADXL345_ReadRawValueFromAccel(i2cHandle, adxl)) {
+	// filtrenin hafızası olarak kullanılmak icin olusturuldu
+	static double MovingFilterValue[3][MOVING_FILTER_SIZE];
 
-			ADXL345_SetAccelerations(i2cHandle, adxl);
+	// ilk giren son cikar prensibi uygulanir
+	cnt = (cnt + 1) % MOVING_FILTER_SIZE;
 
-			for (int i = 0; i < 3; ++i)
-				tempAccelSumVal[i] += adxl->accVal[i];
-
-			++cnt;
-		}
+	// alinan veriler hafızaya kayıt edilir
+	for (int i = 0; i < 3; ++i) {
+		MovingFilterValue[i][cnt] = adxl->IIRfilterAcc[i];
 	}
 
+	double moving_sum_value[3] = { 0 };
+
+	// hafizada ki tum veriler toplanir
+	for (int i = 0; i < MOVING_FILTER_SIZE; ++i) {
+		moving_sum_value[0] += MovingFilterValue[0][i];
+		moving_sum_value[1] += MovingFilterValue[1][i];
+		moving_sum_value[2] += MovingFilterValue[2][i];
+	}
+
+	// toplam deger eleman sayisina bolunerek filtre degeri belirlenir
 	for (int i = 0; i < 3; ++i) {
-		adxl->FIRfilterAcc[i] = tempAccelSumVal[i] / cnt;
+		adxl->FIRfilterAcc[i] = moving_sum_value[i] / MOVING_FILTER_SIZE;
+		adxl->accRecent[i] = adxl->FIRfilterAcc[i];
 	}
 }
 
@@ -230,24 +253,19 @@ PUBLIC void ADXL345_FIRAvarageFilter(I2C_HandleTypeDef* i2cHandle, ADXL345* adxl
  *
  * 			Titreşimden veya farklı etkilerden kaynaklanan gürültünün
  * 			azaltmak için IIR filtre tasarımı.
+ *
+ * @param adxl, ADXL345 türünden nesnenin adresi
+ * @param IIRfilter_rate, filtrenin katysayı oranı
  */
 PUBLIC void ADXL345_IIRLowPassFilter(ADXL345* adxl, double IIRfilter_rate) {
 
-	static double previous_filter_values[3] = { 0 };
+	static double previous_filter_values[3];
 
 	for (int i = 0; i < 3; ++i) {
-
-		// Reset the acceleration in the range
-		if ((int)adxl->FIRfilterAcc[i] > ACCEL_LOWER_LIMIT && (int)adxl->FIRfilterAcc[i] < ACCEL_UPPER_LIMIT) {
-			adxl->FIRfilterAcc[i] = 0;
-			previous_filter_values[i] = 0;
-		}
-
-		// IIR filter
-		adxl->IIRfilterAcc[i] = adxl->FIRfilterAcc[i] * (1 - IIRfilter_rate) + previous_filter_values[i] * IIRfilter_rate;
+		adxl->IIRfilterAcc[i] = adxl->accVal[i] * (1. - IIRfilter_rate) + previous_filter_values[i] * IIRfilter_rate;
 		previous_filter_values[i] = adxl->IIRfilterAcc[i];
-		adxl->accRecent[i] = adxl->IIRfilterAcc[i];
 	}
+
 }
 
 
@@ -260,37 +278,26 @@ PUBLIC void ADXL345_IIRLowPassFilter(ADXL345* adxl, double IIRfilter_rate) {
  */
 void ADXL345_SetVelocity(ADXL345* adxl) {
 
-	static double previous_velocity[2] = { 0 };
-	static uint32_t velocity_previous_time = 0;
+	static double previous_velocity[3] = { 0 };
 	static int16_t cnt = 0;
 
-	/* Hizi hesapla ve degerleri degiskenlere al */
-	uint32_t current_time = HAL_GetTick();
-	double deltaT = current_time - velocity_previous_time;
+	for (int i = 0; i < 3; ++i) {
 
-	if (IS_GREATER_THAN_10_MILLISECONDS(deltaT)) {
-
-		velocity_previous_time = current_time;
-
-		for (int i = 0; i < 2; ++i) {
-
-			/* if the acceleration is zero for a while, reset speed and previous accel */
-			if ((int)adxl->accRecent[i] == 0) {
-				cnt++;
-				if (cnt > 32) {
-					cnt = 0;
-					adxl->accVelocity[i] = 0;
-					previous_velocity[i] = 0;
-					adxl->accPrevious[i] = 0;
-				}
+		/* if the acceleration is zero for a while, reset speed and previous accel */
+		if ((int)adxl->accRecent[i] == 0) {
+			cnt++;
+			if (cnt > 64) {
+				cnt = 0;
+				adxl->accVelocity[i] = 0;
+				previous_velocity[i] = 0;
+				adxl->accPrevious[i] = 0;
 			}
-
-			/* Calculate velocity, integral of the acceleration */
-			adxl->accVelocity[i] = previous_velocity[i] + (adxl->accPrevious[i] + ((adxl->accRecent[i] - adxl->accPrevious[i]) / 2)) * (deltaT * MILIS_TO_SECOND);
-			previous_velocity[i] = adxl->accVelocity[i];
-			adxl->accPrevious[i] = adxl->accRecent[i];
-
 		}
+
+		/* Calculate velocity, integral of the acceleration */
+		adxl->accVelocity[i] = previous_velocity[i] + (adxl->accPrevious[i] + (adxl->accRecent[i] - adxl->accPrevious[i]) / 2) * (20 * MILIS_TO_SECOND);
+		previous_velocity[i] = adxl->accVelocity[i];
+		adxl->accPrevious[i] = adxl->accRecent[i];
 	}
 }
 
@@ -315,6 +322,10 @@ PRIVATE uint8_t ADXL345_Reset(I2C_HandleTypeDef* i2cHandle) {
 /**
  * @brief
  * 			Sensörün hassasiyetlik ayarini secer
+ *
+ * @param i2cHandle, i2c hattı  
+ * @param adxl, adxl türünden nesnenin adresi
+ * @param range, istenen hassasiyet degeri
  *
  * @return
  * 			Basari durumunda '0'

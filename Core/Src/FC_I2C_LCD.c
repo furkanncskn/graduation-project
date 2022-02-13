@@ -56,17 +56,17 @@ PUBLIC void lcd_init (I2C_HandleTypeDef* i2cHandle)
 	lcd_send_cmd (i2cHandle, 0x20);  // 4bit mode
 	HAL_Delay(10);
 
-    // dislay initialisation
+  // dislay initialisation
 	lcd_send_cmd (i2cHandle, 0x28); // Function set --> DL=0 (4 bit mode), N = 1 (2 line display) F = 0 (5x8 characters)
 	HAL_Delay(1);
-	lcd_send_cmd (i2cHandle, 0x08); //Display on/off control --> D=0,C=0, B=0  ---> display off
+	lcd_send_cmd (i2cHandle, 0x08); // Display on/off control --> D=0,C=0, B=0  ---> display off
 	HAL_Delay(1);
 	lcd_send_cmd (i2cHandle, 0x01); // clear display
 	HAL_Delay(1);
 	HAL_Delay(1);
-	lcd_send_cmd (i2cHandle, 0x06); //Entry mode set --> I/D = 1 (increment cursor) & S = 0 (no shift)
+	lcd_send_cmd (i2cHandle, 0x06); // Entry mode set --> I/D = 1 (increment cursor) & S = 0 (no shift)
 	HAL_Delay(1);
-	lcd_send_cmd (i2cHandle, 0x0C); //Display on/off control --> D = 1, C and B = 0. (Cursor and blink, last two bits)
+	lcd_send_cmd (i2cHandle, 0x0C); // Display on/off control --> D = 1, C and B = 0. (Cursor and blink, last two bits)
 
 	lcd_clear(i2cHandle);
 }

@@ -40,7 +40,7 @@ void ADXL345_SetOffsetValues(I2C_HandleTypeDef* i2cHandle, ADXL345* adxl);
 
 void ADXL345_SetAccelerations(I2C_HandleTypeDef* i2cHandle, ADXL345* adxl);
 
-void ADXL345_FIRAvarageFilter(I2C_HandleTypeDef* i2cHandle, ADXL345* adxl, size_t FIRfilter_size);
+void ADXL345_MovingAvarageFilter(I2C_HandleTypeDef* i2cHandle, ADXL345* adxl);
 
 void ADXL345_IIRLowPassFilter(ADXL345* adxl, double filter_rate);
 
