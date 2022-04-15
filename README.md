@@ -21,6 +21,8 @@ Tabi bununla işlemimiz sonlamıyor, sisteme etki eden gürültüyü de temizley
 <p align="center">
 <img width="250" height="90" src="https://user-images.githubusercontent.com/75426545/148693861-364641db-2540-4a90-9c01-9e3502e9eb31.gif" alt="Moving Average Filter">
 </p>
+
+!! Test Görselleri Eklenecektir
 <!--
 ## [<u>Test Görselleri</u>](#test-görselleri)
 
