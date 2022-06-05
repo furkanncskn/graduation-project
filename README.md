@@ -1,5 +1,5 @@
 # İvme Ölçer İle Hız Hesabı
-<h6>Not: Proje tamamlanmamıştır !!!</h6>
+<h6>Not: Proje tamamlanmıştır !!!</h6>
 
 > **`Gürültünün ve istenmeyen sinyallerin filtrelenmesi`**
 > 
@@ -21,22 +21,3 @@ Tabi bununla işlemimiz sonlamıyor, sisteme etki eden gürültüyü de temizley
 <p align="center">
 <img width="250" height="90" src="https://user-images.githubusercontent.com/75426545/148693861-364641db-2540-4a90-9c01-9e3502e9eb31.gif" alt="Moving Average Filter">
 </p>
-
-!! Test Görselleri Eklenecektir
-<!--
-## [<u>Test Görselleri</u>](#test-görselleri)
-
-<p align="center">
-<img width="1000" height="500" src="https://user-images.githubusercontent.com/75426545/148693977-1ca82dac-00af-4f3c-beca-25579f122b2f.png" alt="FİLTRELERİN ÇIKIŞA ETKİSİ 1">
-</p>
-
-<p align="center">
-<img width="1000" height="500" src="https://user-images.githubusercontent.com/75426545/148694005-4001ad2d-b3c5-41cb-91e4-2df48a7225e9.png" alt="FİLTRELERİN ÇIKIŞA ETKİSİ 2">
-</p>
-
-<p align="center">
-<img width="1010" height="500" src="https://user-images.githubusercontent.com/75426545/148694007-104a6c9f-4b74-490c-babd-206bd937bca8.png" alt="FİLTRELERİN ÇIKIŞA ETKİSİ 3">
-</p>
-
-[FİLTRELERİN ÇIKIŞA ETKİSİ 1]: https://user-images.githubusercontent.com/75426545/148693977-1ca82dac-00af-4f3c-beca-25579f122b2f.png
--->
